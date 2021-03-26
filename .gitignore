@@ -1,3 +1,3 @@
-# ignore virtual environment
+# ignore the dependencies in the virtual environment
 
 venv/
