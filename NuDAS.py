@@ -21,7 +21,7 @@ import scipy.io
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import zscore
-
+import scipy.io
 
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QApplication, QMainWindow
@@ -256,7 +256,7 @@ class NuDAS(object):
 
             trig, file_trig = self.load_npy_stimulus_tk(trigger_path,dmr)
             spt_mat = self.spike_matrix_tk(spike_times,trig,time_window,cluster_list=None,dmr=1,shuffled=False)
-
+            spt_mat_1ms=self.spike_matrix_tk(spike_times,trig,0.001,cluster_list=None,dmr=1,shuffled=False)
             # old c / comb graphing stuff...
             # #fig = Figure(figsize = (5, 5),dpi = 100)
             # c=comb[1]
@@ -274,7 +274,7 @@ class NuDAS(object):
             # #canvas.delete('all')
 
             np.save('spike_matrix.npy',spt_mat)
-
+            scipy.io.savemat('./spike_matrix_0.001.mat',mdict={'spt_mat':spt_mat_1ms})
             return spt_mat
 
     def z_scoring_tk(self, cluster_list=None):

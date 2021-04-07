@@ -10,27 +10,11 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-from PyQt5.QtWidgets import QFileDialog, QMessageBox, QSizePolicy, QInputDialog, QTextEdit, QTableWidget, QTableWidgetItem
-from NuDAS import NuDAS
-
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-import matplotlib.pyplot as plt
-
-import random
-
 
 class Ui_MainWindow(object):
-    # gui+
-    def __init__(self):
-        self.nudas = NuDAS()
-        self.stimulus_file_path = ""
-        self.spike_times_file_path = ""
-        self.spike_bin_graphs = None
-
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.setEnabled(True)
+        MainWindow.setEnabled(False)
         MainWindow.resize(2000, 1500)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -68,179 +52,20 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
-        # gui+
-        # File connections
-        self.actionOpenStimulus.triggered. \
-            connect(lambda: self.open_file_dialog("Open Stimulus File", "Image Files (*.mat)", 0))
-        self.actionOpenSpikes.triggered. \
-            connect(lambda: self.open_file_dialog("Open Action Potential File", "Image Files (*.mat)", 1))
-
-        # Tools connections
-        self.actionBinning.triggered. \
-            connect(lambda: self.bin_data())
-
-        self.actionZ_Score.triggered. \
-            connect(lambda: self.z_score())
-
-        # Graph UI elements
-        # i want to move this into another function however the graph never
-        # shows when i move it outside of this function. therefore i think
-        # that i need to find somekind of update gui function after i add the graph object
-        # as a parent
-        self.spike_bin_graphs = PlotCanvas(self.centralwidget, width=10, height=10)
-        self.spike_bin_graphs.move(1000, 0)
-
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.menuFile.setTitle(_translate("MainWindow", "File"))
         self.menuTools.setTitle(_translate("MainWindow", "Tools"))
         self.actionOpenStimulus.setText(_translate("MainWindow", "Open Stimulus File"))
-        self.actionOpenStimulus.setStatusTip(
-            _translate("MainWindow", "Imports and displays the .mat file containing the trigger stimulus data."))
+        self.actionOpenStimulus.setStatusTip(_translate("MainWindow", "Imports and displays the .mat file containing the trigger stimulus data."))
         self.actionOpenSpikes.setText(_translate("MainWindow", "Open Spikes File"))
         self.actionBinning.setText(_translate("MainWindow", "Binning"))
         self.actionZ_Score.setText(_translate("MainWindow", "Z-Score"))
 
-    # gui+
-    def open_file_dialog(self, c, f, dialog_type):
-        if dialog_type == 0:
-            self.stimulus_file_path, x = QFileDialog.getOpenFileName(self.centralwidget,
-                                                                     c,
-                                                                     "/home",
-                                                                     f)
-            # print(self.stimulus_file_path)
-            # CHANGED TK:
-            # self.nudas.load_stimulus(self.stimulus_file_path)
-            self.nudas.stimulus_to_npy_tk(self.stimulus_file_path)
-        elif dialog_type == 1:
-            self.spike_times_file_path, x = QFileDialog.getOpenFileName(self.centralwidget,
-                                                                        c,
-                                                                        "/home",
-                                                                        f)
-            # print(self.spike_times_file_path)
-            # CHANGED TK:
-            # self.nudas.load_spike_times(self.spike_times_file_path)
-            self.nudas.spike_times_to_npy_tk(self.spike_times_file_path)
-            self.listWidgetSpikes.setEnabled(True)
 
-    # gui+
-    # c is for comb. it's like some kind of matplotlib backend for embedding graphs
-    def bin_data(self, c=0):
-        if self.stimulus_file_path == "" or self.spike_times_file_path == "":
-            msg = "First, you must load the stimulus and action potential data (which can be accessed under the " + \
-                  "File menu) to bin any data"
-            msg_box = QMessageBox()
-            msg_box.setIcon(QMessageBox.Information)
-            msg_box.setText(msg)
-            msg_box.exec_()
-        else:
-            # TODO tw or time_window will have to be a user specified value from the GUI
-            bin_window = 100
-            # start_time, okPressed = QInputDialog.getInt(self.centralwidget, "Starting Time", "Milliseconds:", 0, 0,
-            #                                             10000, 1)
-            # end_time, okPressed = QInputDialog.getInt(self.centralwidget, "Ending Time", "Milliseconds:", 100, 0,
-            #                                             10000, 1)
-            bin_window, okPressed = QInputDialog.getInt(self.centralwidget, "Time Window", "Milliseconds:", 100, 0, 10000, 1)
-            spt_mat = self.nudas.bin_data_tk(bin_window)
-            self.spike_bin_graphs.plot_binned_data(spt_mat, bin_window)
-            print(spt_mat)
-            return
-
-            # EVERYTHING ABOVE IS FROM TK
-
-            # we also likely require input for which neuron you would like to do binning on and which stimulus
-            # trial we are currently using
-            stimulus_trial_idx = 0
-            neuron_idx = 0
-            tw = 1
-            dmr = 1
-            bin_window = tw * 0.001
-            # neural_data_path = np.load('./neural_data_path.npy', allow_pickle=True)
-            # neural_data_path = str(neural_data_path)
-            # print('path:::' + neural_data_path)
-
-            self.nudas.bin_spike_matrix(neuron_idx, 1000, False)
-
-            # Graph UI elements
-            self.spike_bin_graphs.plot_1D(self.nudas.spike_binned_mat)
-            # self.spike_bin_graphs = PlotCanvas(self.centralwidget, width=5, height=4)
-            # self.spike_bin_graphs.move(0, 0)
-
-            # ALL OF THIS BELOW HERE IS PLOTTING THE RESULT FROM spike_matrix
-            # # fig = Figure(figsize = (5, 5),dpi = 100)
-            # c = comb[1]
-            # fig = comb[0]
-            # plot1 = fig.add_subplot(111)
-            # plt.title('Density plot (time window=' + str(tw) + ' ms')
-            # plot1.clear()
-            # plot1.imshow(spt_mat, origin='lower left', aspect='auto', interpolation=None, cmap='cividis')
-            # # canvas = FigureCanvasTkAgg(fig,master = root,tag={'cvs'})
-            # c.draw()
-            # # placing the canvas on the Tkinter window
-            # c.get_tk_widget().pack()
-            # # canvas.delete('all')
-            # np.save('spike_matrix.npy', spt_mat)
-
-    def z_score(self):
-        z_norm_mat = self.nudas.z_scoring_tk()
-        # print(self.nudas.z_scoring_tk())
-        # graph this
-        self.spike_bin_graphs.plot_z_norm(z_norm_mat)
-
-
-# gui+
-class PlotCanvas(FigureCanvas):
-    def __init__(self, parent=None, width=5, height=10, dpi=100):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        # self.axes = fig.add_subplot(111)
-
-        FigureCanvas.__init__(self, fig)
-        self.setParent(parent)
-
-        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
-        FigureCanvas.updateGeometry(self)
-
-    def plot_1D(self, binned_data):
-        keys = list(binned_data)
-        i = 1
-        for k in keys:
-            ax = self.figure.add_subplot(len(keys), 1, i)
-            ax.plot(binned_data[k], 'r-')
-            ax.set_title('Neuron ' + str(k))
-            i += 1
-        self.draw()
-
-    def plot(self):
-        data = [random.random() for i in range(25)]
-        ax = self.figure.add_subplot(111)
-        ax.plot(data, 'r-')
-        ax.set_title('PyQt Matplotlib Example')
-        self.draw()
-
-    def plot_binned_data(self, spt_mat, tw):
-        plot1 = self.figure.add_subplot(221)
-        plot1.clear()
-        plot1.set_title('Density plot (time window=' + str(tw) + ' ms')
-        plot1.imshow(spt_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
-        plot1.set_ylabel("Neuron Index")
-        plot1.set_xlabel("Sample Index")
-        self.draw()
-
-    def plot_z_norm(self, z_norm_mat):
-        plot1 = self.figure.add_subplot(222)
-        plot1.clear()
-        plot1.set_title('Density plot')
-        plot1.imshow(z_norm_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
-        plot1.set_ylabel("Neuron Index")
-        plot1.set_xlabel("Sample Index")
-        self.draw()
-
-
-# STARTING POINT
 if __name__ == "__main__":
     import sys
-
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
