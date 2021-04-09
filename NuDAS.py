@@ -6,15 +6,22 @@ Created on Thu Feb 25 14:13:40 2021
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
+
 # cls = clears the command prompt screen
 # pyuic5 -x NuDAS.ui -o gui.py = run this command in the
 # same location as the .ui file to create the python
 # executable (-x) output  (-o) into a file called gui.py
-# pyqt documentation: https://doc.qt.io/qtforpython/api.html
+# pyqt documentation c++ examples: https://doc.qt.io/qtforpython/api.html
+# pyqt documentation python examples (archived): https://doc.qt.io/archives/qtforpython-5.12/PySide2/QtWidgets/
 
-# pyqt5 https://pypi.org/project/pyqt5-tools/
+# pip install pyqt5: https://pypi.org/project/pyqt5-tools/
 #
 # how to use venv in python: https://www.geeksforgeeks.org/create-virtual-environment-using-venv-python/
+
+# TODO:
+# - better organize your functions
+# - decide on if you will store matrices as members, or external npy files, or both
+#   - saving matrices to an npy file is done in this class since that is not a gui thing
 
 import os.path
 import scipy.io
@@ -40,6 +47,7 @@ class NuDAS(object):
         self.spike_binned_mat = {}
         self.sample_period = 24414.0625
         self.sample_rate = 1 / self.sample_period
+        self.bin_window = -1
 
     # the input file contains lists of integers indicating the sample at which
     # a stimulus initiated
@@ -115,11 +123,6 @@ class NuDAS(object):
             # print(k)
             z_norm_mat = zscore(self.spike_binned_mat[k])
             print(z_norm_mat)
-
-    def cov_mat(self, z_norm_mat):
-        cov_mat = np.matmul(z_norm_mat, np.transpose(z_norm_mat))
-        cov_mat = cov_mat / z_norm_mat.shape[1]
-        return cov_mat
 
     # -----------------------------------------------------------------------------------
     # TKINTER VERSION OF CLASS METHODS
@@ -225,7 +228,6 @@ class NuDAS(object):
 
         return spike_mat
 
-    # i would like to get rid of c
     # menu_tkinter.bin_data(c)
     def bin_data_tk(self, tw):
         # tw=take_user_input_for_something()
@@ -287,9 +289,19 @@ class NuDAS(object):
 
         N_clu = spt_mat.shape[0]
         z_norm_mat = zscore(spt_mat, axis=1)
+        np.save('z_scored_matrix.npy', z_norm_mat)
         return z_norm_mat
 
-
+    # correlation is normalized such that all values are inbetween zero and one
+    def covariance_matrix(self):
+        if not os.path.isfile('./z_scored_matrix.npy'):
+            print("In order to perform this operation you must first z-score the data.")
+            return None
+        z_scored_mat = np.load('./z_scored_matrix.npy', allow_pickle=True)
+        cov_mat = np.matmul(z_scored_mat, np.transpose(z_scored_mat))
+        cov_mat = cov_mat / z_scored_mat.shape[1]
+        np.save('correlation_matrix.npy', cov_mat)
+        return cov_mat
 
 
 # def window():

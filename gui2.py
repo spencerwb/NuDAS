@@ -9,25 +9,23 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-
-from PyQt5.QtWidgets import QFileDialog, QMessageBox, QSizePolicy, QInputDialog, QVBoxLayout, QSlider, QHBoxLayout, QTextEdit, QTableWidget, QHeaderView, QTableWidgetItem
+# gui+
 from NuDAS import NuDAS
-
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-import matplotlib.pyplot as plt
-
 import random
+import os
 
 
 class Ui_MainWindow(object):
+
     # gui+
     def __init__(self):
         self.nudas = NuDAS()
         self.stimulus_file_path = ""
         self.spike_times_file_path = ""
         self.data_display_hbox = None
-        self.spike_bin_graphs = None
+        self.graphs = None
         self.tables_vbox = None
         self.stimulus_table = None
         self.spike_table = None
@@ -37,8 +35,67 @@ class Ui_MainWindow(object):
         MainWindow.setEnabled(True)
         MainWindow.resize(2000, 1500)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
+        self.centralwidget.setEnabled(True)
         self.centralwidget.setObjectName("centralwidget")
+        self.horizontalLayoutWidget = QtWidgets.QWidget(self.centralwidget)
+        self.horizontalLayoutWidget.setGeometry(QtCore.QRect(10, 10, 1981, 1361))
+        self.horizontalLayoutWidget.setObjectName("horizontalLayoutWidget")
+        self.horizontalLayout = QtWidgets.QHBoxLayout(self.horizontalLayoutWidget)
+        self.horizontalLayout.setSizeConstraint(QtWidgets.QLayout.SetDefaultConstraint)
+        self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
+        self.horizontalLayout.setObjectName("horizontalLayout")
+        self.verticalLayout_2 = QtWidgets.QVBoxLayout()
+        self.verticalLayout_2.setObjectName("verticalLayout_2")
+        self.label = QtWidgets.QLabel(self.horizontalLayoutWidget)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.label.sizePolicy().hasHeightForWidth())
+        self.label.setSizePolicy(sizePolicy)
+        self.label.setObjectName("label")
+        self.verticalLayout_2.addWidget(self.label)
+        self.tableWidget = QtWidgets.QTableWidget(self.horizontalLayoutWidget)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.tableWidget.sizePolicy().hasHeightForWidth())
+        self.tableWidget.setSizePolicy(sizePolicy)
+        self.tableWidget.setObjectName("tableWidget")
+        self.tableWidget.horizontalHeader().setStretchLastSection(False)
+        self.verticalLayout_2.addWidget(self.tableWidget)
+        self.horizontalLayout_2 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_2.setObjectName("horizontalLayout_2")
+        self.spinBox_2 = QtWidgets.QSpinBox(self.horizontalLayoutWidget)
+        self.spinBox_2.setObjectName("spinBox_2")
+        self.horizontalLayout_2.addWidget(self.spinBox_2)
+        self.spinBox = QtWidgets.QSpinBox(self.horizontalLayoutWidget)
+        self.spinBox.setObjectName("spinBox")
+        self.horizontalLayout_2.addWidget(self.spinBox)
+        self.verticalLayout_2.addLayout(self.horizontalLayout_2)
+        self.verticalLayout_2.setStretch(1, 1)
+        self.horizontalLayout.addLayout(self.verticalLayout_2)
+        self.verticalLayout = QtWidgets.QVBoxLayout()
+        self.verticalLayout.setObjectName("verticalLayout")
+        self.horizontalSlider_2 = QtWidgets.QSlider(self.horizontalLayoutWidget)
+        self.horizontalSlider_2.setOrientation(QtCore.Qt.Horizontal)
+        self.horizontalSlider_2.setObjectName("horizontalSlider_2")
+        self.verticalLayout.addWidget(self.horizontalSlider_2)
+        self.horizontalSlider = QtWidgets.QSlider(self.horizontalLayoutWidget)
+        self.horizontalSlider.setOrientation(QtCore.Qt.Horizontal)
+        self.horizontalSlider.setObjectName("horizontalSlider")
+        self.verticalLayout.addWidget(self.horizontalSlider)
+        self.widget = QtWidgets.QWidget(self.horizontalLayoutWidget)
+        self.widget.setObjectName("widget")
+        # gui+ ->
+        self.graphs = PlotCanvas(self.widget, width=10,
+                                           height=15)
+        # gui+ <-
+        self.verticalLayout.addWidget(self.widget)
+        self.horizontalLayout.addLayout(self.verticalLayout)
+        self.horizontalLayout.setStretch(0, 1)
+        self.horizontalLayout.setStretch(1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
+        # status and menu bars...
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 2000, 22))
         self.menubar.setObjectName("menubar")
@@ -92,63 +149,26 @@ class Ui_MainWindow(object):
         self.actionCorrelationMatrix.triggered. \
             connect(lambda: self.correlation_matrix())
 
-        # Graph UI elements
-        # i want to move this into another function however the graph never
-        # shows when i move it outside of this function. therefore i think
-        # that i need to find some kind of update gui function after i add the graph object
-        # as a parent
-
-        # self.data_display_hbox = QHBoxLayout(self.centralwidget)
-
-        # self.stimulus_table = QTableWidget(self.centralwidget)
-
-        # scaling is not working for some reason with this widget theres like a maximum size
-        # self.tables_widget = QtWidgets.QWidget(self.centralwidget)
-        # self.tables_widget.resize(1000, 1500)
-        # print("maximum size")
-        # print(self.tables_widget.maximumSize())
-        # print(self.tables_widget.size())
-
-        # self.stimulus_table = QTableWidget(self.tables_widget)
-        # self.stimulus_table = QTableWidget(self.centralwidget)
-        self.stimulus_table = QTableWidget()
-        self.stimulus_table.setRowCount(0)
-        self.stimulus_table.setColumnCount(0)
-
-        self.stimulus_table.horizontalHeader().setStretchLastSection(True)
-        # self.stimulus_table.horizontalHeader().setStretchLastSection(False)
-        # self.stimulus_table.resize(1000, 1500)
-        self.stimulus_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-
-        self.scale_slider = QSlider(QtCore.Qt.Horizontal, self.centralwidget)
+        # qui+
+        self.label.setText("No Binned Data to Display")
+        # Sliders connections
+        # top
+        self.horizontalSlider_2.setValue(0)
+        self.horizontalSlider_2.valueChanged.connect(lambda: self.top_slider_changed())
+        # bottom
+        self.horizontalSlider.setValue(99)
+        self.horizontalSlider.valueChanged.connect(lambda: self.bottom_slider_changed())
 
 
-        self.tables_vbox = QVBoxLayout(self.centralwidget)
-        # self.tables_vbox.setSizeConstraint()
-        # self.tables_vbox = QVBoxLayout()
-        self.tables_vbox.addWidget(self.stimulus_table)
-        self.tables_vbox.addWidget(self.scale_slider)
-        # self.data_display_hbox.addLayout(self.tables_vbox)
-
-        # self.data_display_hbox.addWidget(QtWidgets.QWidget)
-        print(self.centralwidget.width()) # 100
-        print(self.centralwidget.height()) # 30
-        self.spike_bin_graphs = PlotCanvas(self.centralwidget, width=10,
-                                           height=15)
-        # self.data_display_hbox.addWidget(self.spike_bin_graphs)
-
-        self.spike_bin_graphs.move(1000, 0)
-
-        # self.custom_analysis()
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        self.label.setText(_translate("MainWindow", "TextLabel"))
         self.menuFile.setTitle(_translate("MainWindow", "File"))
         self.menuTools.setTitle(_translate("MainWindow", "Tools"))
         self.actionOpenStimulus.setText(_translate("MainWindow", "Open Stimulus File"))
-        self.actionOpenStimulus.setStatusTip(
-            _translate("MainWindow", "Imports and displays the .mat file containing the trigger stimulus data."))
+        self.actionOpenStimulus.setStatusTip(_translate("MainWindow", "Imports and displays the .mat file containing the trigger stimulus data."))
         self.actionOpenSpikes.setText(_translate("MainWindow", "Open Spikes File"))
         self.actionBinning.setText(_translate("MainWindow", "Binning"))
         self.actionZ_Score.setText(_translate("MainWindow", "Z-Score"))
@@ -158,7 +178,7 @@ class Ui_MainWindow(object):
     # gui+
     def open_file_dialog(self, c, f, dialog_type):
         if dialog_type == 0:
-            self.stimulus_file_path, x = QFileDialog.getOpenFileName(self.centralwidget,
+            self.stimulus_file_path, x = QtWidgets.QFileDialog.getOpenFileName(self.centralwidget,
                                                                      c,
                                                                      "/home",
                                                                      f)
@@ -167,7 +187,7 @@ class Ui_MainWindow(object):
             # self.nudas.load_stimulus(self.stimulus_file_path)
             self.nudas.stimulus_to_npy_tk(self.stimulus_file_path)
         elif dialog_type == 1:
-            self.spike_times_file_path, x = QFileDialog.getOpenFileName(self.centralwidget,
+            self.spike_times_file_path, x = QtWidgets.QFileDialog.getOpenFileName(self.centralwidget,
                                                                         c,
                                                                         "/home",
                                                                         f)
@@ -182,8 +202,8 @@ class Ui_MainWindow(object):
         if self.stimulus_file_path == "" or self.spike_times_file_path == "":
             msg = "First, you must load the stimulus and action potential data (which can be accessed under the " + \
                   "File menu) to bin any data"
-            msg_box = QMessageBox()
-            msg_box.setIcon(QMessageBox.Information)
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setIcon(QtWidgets.QMessageBox.Information)
             msg_box.setText(msg)
             msg_box.exec_()
         else:
@@ -193,105 +213,59 @@ class Ui_MainWindow(object):
             #                                             10000, 1)
             # end_time, okPressed = QInputDialog.getInt(self.centralwidget, "Ending Time", "Milliseconds:", 100, 0,
             #                                             10000, 1)
-            bin_window, okPressed = QInputDialog.getInt(self.centralwidget, "Time Window", "Milliseconds:", 100, 0, 10000, 1)
+            bin_window, okPressed = QtWidgets.QInputDialog.getInt(self.centralwidget, "Time Window", "Milliseconds:", 100, 0, 10000, 1)
+            self.nudas.bin_window = bin_window
             spt_mat = self.nudas.bin_data_tk(bin_window)
             dim = spt_mat.shape
             print(dim)
-            self.stimulus_table.setRowCount(dim[1])
-            self.stimulus_table.setColumnCount(dim[0])
-            print(self.stimulus_table)
+            self.tableWidget.setRowCount(dim[1])
+            self.tableWidget.setColumnCount(dim[0])
+            print(self.tableWidget)
 
+            table_title = "File: " + os.path.basename(self.spike_times_file_path)
+            table_title = table_title + "\nNumber of Neurons: " + str(dim[0]) + "\nNumber of Time Bins: " + str(dim[1])
+            self.label.setText(table_title)
             for i in range(dim[1]):
                 for j in range(dim[0]):
-                    table_item = QTableWidgetItem(str(spt_mat[j][i]))
-                    self.stimulus_table.setItem(i, j, table_item)
+                    table_item = QtWidgets.QTableWidgetItem(str(spt_mat[j][i]))
+                    self.tableWidget.setItem(i, j, table_item)
 
-            self.spike_bin_graphs.plot_binned_data(spt_mat, bin_window)
+            self.graphs.plot_binned_data(spt_mat, bin_window)
             print(spt_mat)
             return
-
-            # EVERYTHING ABOVE IS FROM TK
-
-            # we also likely require input for which neuron you would like to do binning on and which stimulus
-            # trial we are currently using
-            stimulus_trial_idx = 0
-            neuron_idx = 0
-            tw = 1
-            dmr = 1
-            bin_window = tw * 0.001
-            # neural_data_path = np.load('./neural_data_path.npy', allow_pickle=True)
-            # neural_data_path = str(neural_data_path)
-            # print('path:::' + neural_data_path)
-
-            self.nudas.bin_spike_matrix(neuron_idx, 1000, False)
-
-            # Graph UI elements
-            self.spike_bin_graphs.plot_1D(self.nudas.spike_binned_mat)
-            # self.spike_bin_graphs = PlotCanvas(self.centralwidget, width=5, height=4)
-            # self.spike_bin_graphs.move(0, 0)
-
-            # ALL OF THIS BELOW HERE IS PLOTTING THE RESULT FROM spike_matrix
-            # # fig = Figure(figsize = (5, 5),dpi = 100)
-            # c = comb[1]
-            # fig = comb[0]
-            # plot1 = fig.add_subplot(111)
-            # plt.title('Density plot (time window=' + str(tw) + ' ms')
-            # plot1.clear()
-            # plot1.imshow(spt_mat, origin='lower left', aspect='auto', interpolation=None, cmap='cividis')
-            # # canvas = FigureCanvasTkAgg(fig,master = root,tag={'cvs'})
-            # c.draw()
-            # # placing the canvas on the Tkinter window
-            # c.get_tk_widget().pack()
-            # # canvas.delete('all')
-            # np.save('spike_matrix.npy', spt_mat)
 
     # gui+
     def z_score(self):
         z_scored_mat = self.nudas.z_scoring_tk()
         # print(self.nudas.z_scoring_tk())
         # graph this
-        self.spike_bin_graphs.plot_z_norm(z_scored_mat)
+        self.graphs.plot_z_norm(z_scored_mat)
 
     # gui+
     def correlation_matrix(self):
         cov_mat = self.nudas.covariance_matrix()
         # graph the covariance matrix
         if cov_mat is not None:
-            self.spike_bin_graphs.plot_correlation_matrix(cov_mat)
+            self.graphs.plot_correlation_matrix(cov_mat)
 
-        # z_scored_mat=np.load('./z_scored_matrix.npy',allow_pickle=True)
-        # cov_mat=cov_matrix(z_scored_mat)
-        # #fig = Figure(figsize = (5, 5),dpi = 100)
-        # c=comb[1]
-        # fig=comb[0]
-        # plot1= fig.add_subplot(111)
-        # plot1.clear()
-        # # CHANGED:
-        # # plot1.imshow(cov_mat, origin='lower left', aspect='auto', interpolation=None, cmap='cividis')
-        # plot1.imshow(cov_mat,origin='lower',aspect='auto',interpolation=None,cmap='cividis')
-        # #canvas = FigureCanvasTkAgg(fig,master = root)
-        # c.draw()
-        # # placing the canvas on the Tkinter window
-        # c.get_tk_widget().pack()
-        # np.save('correlation_matrix.npy',cov_mat)
+    #gui+
+    def top_slider_changed(self):
+        top_val = self.horizontalSlider_2.value()
+        bot_val = self.horizontalSlider.value()
+        if top_val >= bot_val:
+            self.horizontalSlider_2.setValue(bot_val-1)
+        if self.nudas.bin_window != -1:
+            self.graphs.plot_ranged_binned_data(self.nudas.bin_data_tk(self.nudas.bin_window), top_val, bot_val, self.nudas.bin_window)
+        print(top_val)
 
-#     # gui+
-#     def custom_analysis(self, filepath=""):
-# #         exec("""def a(x):
-# # #    return x+1
-# # # print(a(2))""")
-#
-#         with open(filepath, 'r') as reader:
-#              # Read & print the entire file
-#              # retreive the parameters from the function
-#              # ask teh user for the values for these parameters
-#              # insert these parameters into the string
-#              # exec() the modified string
-#              code = reader.read()
-#              exec(code)
-#              print(reader.read())
-#         # exec()
-#         return
+    # gui+
+    def bottom_slider_changed(self):
+        bot_val = self.horizontalSlider.value()
+        top_val = self.horizontalSlider_2.value()
+        if top_val >= bot_val:
+            self.horizontalSlider.setValue(top_val+1)
+        print(bot_val)
+
 
 # gui+
 # subplot indexing: https://www.codespeedy.com/use-add_subplot-in-matplotlib/#:~:text=The%20add_subplot%20%28%29%20has%203%20arguments.%20The%20first,above%20is%3A%20from%20matplotlib%20import%20pyplot%20as%20plt
@@ -304,7 +278,7 @@ class PlotCanvas(FigureCanvas):
         FigureCanvas.__init__(self, fig)
         self.setParent(parent)
 
-        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
+        FigureCanvas.setSizePolicy(self, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
 
     def plot_1D(self, binned_data):
@@ -333,6 +307,20 @@ class PlotCanvas(FigureCanvas):
         plot1.set_xlabel("Sample Index")
         self.draw()
 
+    def plot_ranged_binned_data(self, spt_mat, start, end, tw):
+        plot1 = self.figure.add_subplot(311)
+        plot1.clear()
+        plot1.set_title('Density plot (time window=' + str(tw) + ' ms')
+        start /= 100
+        end /= 100
+        visible_time_bins = len(spt_mat[1])
+        print(int(visible_time_bins*start))
+        temp = spt_mat[0:5][int(visible_time_bins*start):int(visible_time_bins*end)]
+        plot1.imshow(spt_mat[0:5][int(visible_time_bins*start):int(visible_time_bins*end)], origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        plot1.set_ylabel("Neuron Index")
+        plot1.set_xlabel("Sample Index")
+        self.draw()
+
     def plot_z_norm(self, z_norm_mat):
         plot1 = self.figure.add_subplot(312)
         plot1.clear()
@@ -352,10 +340,8 @@ class PlotCanvas(FigureCanvas):
         self.draw()
 
 
-# STARTING POINT
 if __name__ == "__main__":
     import sys
-
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
