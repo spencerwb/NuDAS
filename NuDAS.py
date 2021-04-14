@@ -258,24 +258,10 @@ class NuDAS(object):
 
             trig, file_trig = self.load_npy_stimulus_tk(trigger_path,dmr)
             spt_mat = self.spike_matrix_tk(spike_times,trig,time_window,cluster_list=None,dmr=1,shuffled=False)
-
-            # old c / comb graphing stuff...
-            # #fig = Figure(figsize = (5, 5),dpi = 100)
-            # c=comb[1]
-            # fig=comb[0]
-            # plot1= fig.add_subplot(111)
-            # plt.title('Density plot (time window='+str(tw)+' ms')
-            # plot1.clear()
-            # # CHANGED:
-            # # plot1.imshow(spt_mat, origin='lower left', aspect='auto', interpolation=None, cmap='cividis')
-            # plot1.imshow(spt_mat,origin='lower',aspect='auto',interpolation=None,cmap='cividis')
-            # #canvas = FigureCanvasTkAgg(fig,master = root,tag={'cvs'})
-            # c.draw()
-            # # placing the canvas on the Tkinter window
-            # c.get_tk_widget().pack()
-            # #canvas.delete('all')
+            spt_mat_1ms = self.spike_matrix_tk(spike_times, trig, 0.001, cluster_list=None, dmr=1, shuffled=False)
 
             np.save('spike_matrix.npy',spt_mat)
+            scipy.io.savemat('./spike_matrix_0.001.mat', mdict={'spt_mat': spt_mat_1ms})
 
             return spt_mat
 
@@ -302,41 +288,3 @@ class NuDAS(object):
         cov_mat = cov_mat / z_scored_mat.shape[1]
         np.save('correlation_matrix.npy', cov_mat)
         return cov_mat
-
-
-# def window():
-#     app = QApplication(sys.argv)
-#     win = QMainWindow()
-#     # top left hand corner
-#     xpos = 200
-#     ypos = 200
-#     width = 300
-#     height = 300
-#     win.setGeometry(xpos, ypos, width, height)
-#     win.setWindowTitle("NuDAS")
-#
-#     win.show()
-#     sys.exit(app.exec_())
-#
-#
-# # importing data
-# p = "../spike_times_good_clust.mat"
-# # p = input("enter file location for spike times: ")
-# spike, p2 = load_spike_times(p)
-# # print(spike[0])
-# # print(spike[0][1])
-# # print(spike[0][1][0])
-
-# # ../AudiResp_24_24-190414-163146-ripplesF_triggers.mat
-# # p = input("enter file location for triggers/stimulus files: ")
-# p = "../AudiResp_24_24-190414-163146-ripplesF_triggers.mat"
-# p = r"C:\Users\webst\OneDrive\academic\2020-21 SEN\2nd_semester\cis_497\auditory_populations_project\AudiResp_24_24-190414-163146-ripplesF_triggers.mat"
-# nudas = NuDAS()
-# nudas.load_stimulus(p)
-# # trigs, p2 = load_triggers(p)
-#
-# # preprocessing
-# # binning
-# r = binning()
-#
-# window()
