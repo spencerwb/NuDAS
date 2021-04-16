@@ -15,6 +15,8 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import random
 import os
+import matlab.engine
+import scipy.io
 
 
 class Ui_MainWindow(object):
@@ -85,6 +87,8 @@ class Ui_MainWindow(object):
         self.horizontalSlider.setObjectName("horizontalSlider")
         self.verticalLayout.addWidget(self.horizontalSlider)
         self.widget = QtWidgets.QWidget(self.horizontalLayoutWidget)
+        print(self.widget.size())
+        self.widget.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.widget.setObjectName("widget")
         # gui+ ->
         self.graphs = PlotCanvas(self.widget, width=10,
@@ -118,6 +122,8 @@ class Ui_MainWindow(object):
         # gui+ ->
         self.actionCorrelationMatrix = QtWidgets.QAction(MainWindow)
         self.actionCorrelationMatrix.setObjectName("actionCorrelationMatrix")
+        self.actionCustomFunction = QtWidgets.QAction(MainWindow)
+        self.actionCustomFunction.setObjectName("actionCustomFunction")
         # <-
         self.menuFile.addAction(self.actionOpenStimulus)
         self.menuFile.addAction(self.actionOpenSpikes)
@@ -125,6 +131,7 @@ class Ui_MainWindow(object):
         self.menuTools.addAction(self.actionZ_Score)
         # gui+ ->
         self.menuTools.addAction(self.actionCorrelationMatrix)
+        self.menuTools.addAction(self.actionCustomFunction)
         # <-
         self.menubar.addAction(self.menuFile.menuAction())
         self.menubar.addAction(self.menuTools.menuAction())
@@ -149,6 +156,9 @@ class Ui_MainWindow(object):
         self.actionCorrelationMatrix.triggered. \
             connect(lambda: self.correlation_matrix())
 
+        self.actionCustomFunction.triggered. \
+            connect(lambda: self.granger())
+
         # qui+
         self.label.setText("No Binned Data to Display")
         # Sliders connections
@@ -158,6 +168,11 @@ class Ui_MainWindow(object):
         # bottom
         self.horizontalSlider.setValue(99)
         self.horizontalSlider.valueChanged.connect(lambda: self.bottom_slider_changed())
+        # Spin Boxes
+        self.spinBox_2.valueChanged.connect(lambda: self.left_spinbox_changed())
+        self.spinBox.valueChanged.connect(lambda: self.right_spinbox_changed())
+        self.spinBox_2.setMinimum(1)
+        self.spinBox.setMinimum(1)
 
 
 
@@ -174,6 +189,7 @@ class Ui_MainWindow(object):
         self.actionZ_Score.setText(_translate("MainWindow", "Z-Score"))
         # gui+
         self.actionCorrelationMatrix.setText(_translate("MainWindow", "Correlation Matrix"))
+        self.actionCustomFunction.setText(_translate("MainWindow", "Granger Causality"))
 
     # gui+
     def open_file_dialog(self, c, f, dialog_type):
@@ -199,6 +215,7 @@ class Ui_MainWindow(object):
     # gui+
     # c is for comb. it's like some kind of matplotlib backend for embedding graphs
     def bin_data(self, c=0):
+        print(self.centralwidget.geometry())
         if self.stimulus_file_path == "" or self.spike_times_file_path == "":
             msg = "First, you must load the stimulus and action potential data (which can be accessed under the " + \
                   "File menu) to bin any data"
@@ -231,6 +248,8 @@ class Ui_MainWindow(object):
                     self.tableWidget.setItem(i, j, table_item)
 
             self.graphs.plot_binned_data(spt_mat, bin_window)
+            self.spinBox_2.setMaximum(dim[1])
+            self.spinBox.setMaximum(dim[0])
             print(spt_mat)
             return
 
@@ -248,6 +267,40 @@ class Ui_MainWindow(object):
         if cov_mat is not None:
             self.graphs.plot_correlation_matrix(cov_mat)
 
+    # gui+
+    def granger(self):
+        eng = matlab.engine.start_matlab()
+        tgt = "testRetString"
+        i = 3
+        # out = eng.run_granger()
+        # print(out)
+
+        path='./causal_map.mat'
+        if os.path.exists(path):
+            mat = scipy.io.loadmat(path)
+            granger_mat = mat['Psi2']
+            if granger_mat is not None:
+                self.graphs.plot_granger_matrix(granger_mat)
+            else:
+                print("NOT WORKING 2")
+        else:
+            print('NOT WORKING')
+
+
+        return
+        # matlab_program = "eng." + tgt + "(" + str(i) + ")"
+        # exec(matlab_program)
+
+
+
+        spt_mat = self.nudas.load_npy_spike_times_tk("./output.m", 0)
+        dim = spt_mat.shape
+        for i in range(dim[1]):
+            for j in range(dim[0]):
+                table_item = QtWidgets.QTableWidgetItem(str(spt_mat[j][i]))
+                self.tableWidget.setItem(i, j, table_item)
+        return
+
     #gui+
     def top_slider_changed(self):
         top_val = self.horizontalSlider_2.value()
@@ -256,7 +309,7 @@ class Ui_MainWindow(object):
             self.horizontalSlider_2.setValue(bot_val-1)
         if self.nudas.bin_window != -1:
             self.graphs.plot_ranged_binned_data(self.nudas.bin_data_tk(self.nudas.bin_window), top_val, bot_val, self.nudas.bin_window)
-        print(top_val)
+        # print(top_val)
 
     # gui+
     def bottom_slider_changed(self):
@@ -264,7 +317,23 @@ class Ui_MainWindow(object):
         top_val = self.horizontalSlider_2.value()
         if top_val >= bot_val:
             self.horizontalSlider.setValue(top_val+1)
-        print(bot_val)
+        if self.nudas.bin_window != -1:
+            self.graphs.plot_ranged_binned_data(self.nudas.bin_data_tk(self.nudas.bin_window), top_val, bot_val, self.nudas.bin_window)
+        # print(bot_val)
+
+    # gui+
+    def left_spinbox_changed(self):
+        row_idx = self.spinBox_2.value()
+        col_idx = self.tableWidget.currentColumn()
+        if row_idx < self.tableWidget.rowCount():
+            self.tableWidget.setCurrentCell(row_idx-1, col_idx)
+
+    # gui+
+    def right_spinbox_changed(self):
+        col_idx = self.spinBox.value()
+        row_idx = self.tableWidget.currentRow()
+        if col_idx < self.tableWidget.columnCount():
+            self.tableWidget.setCurrentCell(row_idx, col_idx-1)
 
 
 # gui+
@@ -280,6 +349,9 @@ class PlotCanvas(FigureCanvas):
 
         FigureCanvas.setSizePolicy(self, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
+
+        self.plot_obj = None
+
 
     def plot_1D(self, binned_data):
         keys = list(binned_data)
@@ -299,6 +371,17 @@ class PlotCanvas(FigureCanvas):
         self.draw()
 
     def plot_binned_data(self, spt_mat, tw):
+        self.plot_obj = self.figure.add_subplot(211)
+        self.plot_obj.clear()
+        self.plot_obj.set_title('Density plot (time window=' + str(tw) + ' ms')
+        self.plot_obj.imshow(spt_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        self.plot_obj.set_ylabel("Neuron Index")
+        self.plot_obj.set_xlabel("Sample Index")
+        self.draw()
+        return
+
+
+
         plot1 = self.figure.add_subplot(311)
         plot1.clear()
         plot1.set_title('Density plot (time window=' + str(tw) + ' ms')
@@ -308,20 +391,33 @@ class PlotCanvas(FigureCanvas):
         self.draw()
 
     def plot_ranged_binned_data(self, spt_mat, start, end, tw):
-        plot1 = self.figure.add_subplot(311)
-        plot1.clear()
-        plot1.set_title('Density plot (time window=' + str(tw) + ' ms')
+        # start /= 100
+        # end /= 100
+        # visible_time_bins = len(spt_mat[1])
+        # print(int(visible_time_bins * start))
+        # return
+
+        self.plot_obj.clear()
+        # self.plot_obj.set_title('Density plot (time window=' + str(tw) + ' ms')
         start /= 100
         end /= 100
         visible_time_bins = len(spt_mat[1])
-        print(int(visible_time_bins*start))
-        temp = spt_mat[0:5][int(visible_time_bins*start):int(visible_time_bins*end)]
-        plot1.imshow(spt_mat[0:5][int(visible_time_bins*start):int(visible_time_bins*end)], origin='lower', aspect='auto', interpolation=None, cmap='cividis')
-        plot1.set_ylabel("Neuron Index")
-        plot1.set_xlabel("Sample Index")
+        # print(int(visible_time_bins*start))
+        # temp = spt_mat[0:5][int(visible_time_bins*start):int(visible_time_bins*end)]
+        self.plot_obj.imshow(spt_mat[:, int(visible_time_bins*start):int(visible_time_bins*end)], origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        # self.plot_obj.set_ylabel("Neuron Index")
+        # self.plot_obj.set_xlabel("Sample Index")
         self.draw()
 
     def plot_z_norm(self, z_norm_mat):
+        self.plot_obj.clear()
+        self.plot_obj.set_title('Z-Normed Data')
+        self.plot_obj.imshow(z_norm_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        self.plot_obj.set_ylabel("Neuron Index")
+        self.plot_obj.set_xlabel("Sample Index")
+        self.draw()
+        return
+
         plot1 = self.figure.add_subplot(312)
         plot1.clear()
         plot1.set_title('Z-Normed Data')
@@ -331,6 +427,14 @@ class PlotCanvas(FigureCanvas):
         self.draw()
 
     def plot_correlation_matrix(self, cov_mat):
+        self.plot_obj.clear()
+        self.plot_obj.set_title('Correlation Matrix')
+        self.plot_obj.imshow(cov_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        self.plot_obj.set_ylabel("Neuron Index")
+        self.plot_obj.set_xlabel("Sample Index")
+        self.draw()
+        return
+
         plot1 = self.figure.add_subplot(313)
         plot1.clear()
         plot1.set_title('Correlation Matrix')
@@ -338,6 +442,15 @@ class PlotCanvas(FigureCanvas):
         plot1.set_ylabel("Neuron Index")
         plot1.set_xlabel("Sample Index")
         self.draw()
+
+    def plot_granger_matrix(self, psi_2_mat):
+        self.plot_obj.clear()
+        self.plot_obj.set_title('Granger Matrix')
+        self.plot_obj.imshow(psi_2_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        self.plot_obj.set_ylabel("Target Neuron Index")
+        self.plot_obj.set_xlabel("Trigger Neuron Index")
+        self.draw()
+        return
 
 
 if __name__ == "__main__":

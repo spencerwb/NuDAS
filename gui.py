@@ -61,6 +61,8 @@ class Ui_MainWindow(object):
         # gui+ ->
         self.actionCorrelationMatrix = QtWidgets.QAction(MainWindow)
         self.actionCorrelationMatrix.setObjectName("actionCorrelationMatrix")
+        self.actionCustomFunction = QtWidgets.QAction(MainWindow)
+        self.actionCustomFunction.setObjectName("actionCustomFunction")
         # <-
         self.menuFile.addAction(self.actionOpenStimulus)
         self.menuFile.addAction(self.actionOpenSpikes)
@@ -68,6 +70,7 @@ class Ui_MainWindow(object):
         self.menuTools.addAction(self.actionZ_Score)
         # gui+ ->
         self.menuTools.addAction(self.actionCorrelationMatrix)
+        self.menuTools.addAction(self.actionCustomFunction)
         # <-
         self.menubar.addAction(self.menuFile.menuAction())
         self.menubar.addAction(self.menuTools.menuAction())
@@ -90,6 +93,9 @@ class Ui_MainWindow(object):
             connect(lambda: self.z_score())
 
         self.actionCorrelationMatrix.triggered. \
+            connect(lambda: self.correlation_matrix())
+
+        self.actionCustomFunction.triggered. \
             connect(lambda: self.correlation_matrix())
 
         # Graph UI elements

@@ -5,6 +5,7 @@ function mat=run_granger()
     trial_duration=3000;
     spt_mat_trunc=spt_mat(:,1:tot_duration);
     X=reshape(spt_mat_trunc,size(spt_mat_trunc,1),trial_duration,tot_duration/trial_duration);
+    disp('here')
     demo_real(X);
 
 end
