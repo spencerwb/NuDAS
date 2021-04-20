@@ -1,8 +1,8 @@
-import numpy as np
+﻿import numpy as np
 from sklearn.decomposition import PCA
 
 #Function to detect significant neuronal assemblies
-def assembly_detection(path,dmr,z_norm_mat):
+def assembly_detection(z_norm_mat):
     #Running PCA on the z_norm matrix
     N_clu=z_norm_mat.shape[0]
     N_bins=z_norm_mat.shape[1]
@@ -34,8 +34,6 @@ def assembly_detection(path,dmr,z_norm_mat):
 
     sig_eig_vec=np.array(sig_eig_vec)
     bel_lam_min_vec=np.array(bel_lam_min_vec)
-    print('Number of significant assemblies from '+str(path)+', dmr '+str(dmr)+': '+str(sig_eig_vec.shape[0]))
-    #print('Expected number of neurons per assembly: '+str(bel_lam_min_vec.shape[0]))
-
-
+    print('Number of significant assemblies detected: '+str(sig_eig_vec.shape[0]))
+    
     return  sig_eig_vec,bel_lam_min_vec,expl_var
