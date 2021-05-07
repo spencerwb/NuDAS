@@ -20,8 +20,10 @@ import os
 import matlab.engine
 import scipy.io
 import matplotlib.pyplot as plt
-
+import math
 import shutil
+
+import scipy.ndimage as ndimage
 
 
 
@@ -105,8 +107,8 @@ class Ui_MainWindow(object):
         self.widget.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.widget.setObjectName("widget")
         # gui+ ->
-        self.graphs = PlotCanvas(self.centralwidget, width=10,
-                                           height=15)
+        self.graphs = PlotCanvas(self.centralwidget, self, width=10,
+                                           height=20)
         # this was not here before
         # TODO: DELETE self.widget its obsolete now because the graphs no longer need a parent
         self.verticalLayout.addWidget(self.graphs)
@@ -147,6 +149,8 @@ class Ui_MainWindow(object):
         self.actionGrangerFunction.setObjectName("actionGrangerFunction")
         self.actionAssemblyFunction = QtWidgets.QAction(MainWindow)
         self.actionAssemblyFunction.setObjectName("actionAssemblyFunction")
+        self.actionSmoothingFunction = QtWidgets.QAction(MainWindow)
+        # self.actionSmoothingFunction.setObjectName("actionSmoothingFunction")
         # <-
         self.menuFile.addAction(self.actionOpenStimulus)
         self.menuFile.addAction(self.actionOpenSpikes)
@@ -156,6 +160,7 @@ class Ui_MainWindow(object):
         self.menuFile.addSeparator()
         self.menuFile.addAction(self.actionOpenNewWindow)
         self.menuFile.addAction(self.actionExportGraphs)
+        # self.menuTools.addAction(self.actionSmoothingFunction)
         self.menuTools.addAction(self.actionCorrelationMatrix)
         self.menuTools.addAction(self.actionGrangerFunction)
         self.menuTools.addAction(self.actionAssemblyFunction)
@@ -196,6 +201,9 @@ class Ui_MainWindow(object):
         self.actionExportGraphs.triggered. \
             connect(lambda: self.open_file_dialog(c="Select Destination Folder", f='', dialog_type=2))
 
+        # self.actionSmoothingFunction.triggered. \
+        #     connect(lambda: self.smoothing())
+
 
 
         # gui+
@@ -231,6 +239,7 @@ class Ui_MainWindow(object):
         self.actionCorrelationMatrix.setText(_translate("MainWindow", "Correlation Matrix"))
         self.actionGrangerFunction.setText(_translate("MainWindow", "Granger Causality"))
         self.actionAssemblyFunction.setText(_translate("MainWindow", "Assembly"))
+        # self.actionSmoothingFunction.setText(_translate("MainWindow", "Smoothing"))
 
     # gui+
     def open_new_window(self):
@@ -271,6 +280,21 @@ class Ui_MainWindow(object):
                 for file in files:
                     shutil.copy(os.path.join(root, file), dir)
 
+            if os.path.isfile('correlation_matrix.npy'):
+                shutil.copy('correlation_matrix.npy', dir)
+
+            if os.path.isfile('z_scored_matrix.npy'):
+                shutil.copy('z_scored_matrix.npy', dir)
+
+            if os.path.isfile('neural_data_path.npy'):
+                shutil.copy('neural_data_path.npy', dir)
+
+            if os.path.isfile('trigger_path.npy'):
+                shutil.copy('trigger_path.npy', dir)
+
+            if os.path.isfile('./causal_map.mat'):
+                shutil.copy('./causal_map.mat', dir)
+
 
     # gui+
     # c is for comb. it's like some kind of matplotlib backend for embedding graphs
@@ -294,7 +318,6 @@ class Ui_MainWindow(object):
             self.nudas.bin_window = bin_window
             spt_mat = self.nudas.bin_data_tk(bin_window)
             dim = spt_mat.shape
-            print(dim)
             self.tableWidget.setRowCount(dim[1])
             self.tableWidget.setColumnCount(dim[0])
             print(self.tableWidget)
@@ -313,12 +336,58 @@ class Ui_MainWindow(object):
             print(spt_mat)
             return
 
+    def smoothing(self):
+        s, okPressed = QtWidgets.QInputDialog.getInt(self.centralwidget, "Standard Deviation", "Milliseconds:", 100,
+                                                              0, 10000, 1)
+
+        img = self.nudas.load_npy_spike_times_tk('/spike_times_good_clust.mat', 0)
+
+        spt_mat = ndimage.gaussian_filter(img, sigma=(s, 0, 0), order=0)
+
+        self.graphs.plot_smoothed_data(spt_mat, s)
+
+        dim = spt_mat.shape
+        self.tableWidget.setRowCount(dim[1])
+        self.tableWidget.setColumnCount(dim[0])
+        print(self.tableWidget)
+
+        table_title = "File: " + os.path.basename(self.spike_times_file_path)
+        table_title = table_title + "\nNumber of Neurons: " + str(dim[0]) + "\nNumber of Time Bins: " + str(dim[1])
+        self.label.setText(table_title)
+        for i in range(dim[1]):
+            for j in range(dim[0]):
+                table_item = QtWidgets.QTableWidgetItem(str(spt_mat[j][i]))
+                self.tableWidget.setItem(i, j, table_item)
+        return
+
+
+
     # gui+
     def z_score(self):
         z_scored_mat = self.nudas.z_scoring_tk()
         # print(self.nudas.z_scoring_tk())
         # graph this
+
+        dim = z_scored_mat.shape
+        self.tableWidget.setRowCount(dim[1])
+        self.tableWidget.setColumnCount(dim[0])
+        print(self.tableWidget)
+
+        table_title = "File: " + os.path.basename(self.spike_times_file_path)
+        table_title = table_title + "\nNumber of Neurons: " + str(dim[0]) + "\nNumber of Samples: " + str(dim[1])
+        self.label.setText(table_title)
+        for i in range(dim[1]):
+            for j in range(dim[0]):
+                table_item = QtWidgets.QTableWidgetItem(str(z_scored_mat[j][i]))
+                self.tableWidget.setItem(i, j, table_item)
+
+        self.spinBox_2.setMaximum(dim[1])
+        self.spinBox.setMaximum(dim[0])
+
         self.graphs.plot_z_norm(z_scored_mat)
+        print(z_scored_mat)
+        return
+
 
     # gui+
     def correlation_matrix(self):
@@ -351,9 +420,7 @@ class Ui_MainWindow(object):
         # matlab_program = "eng." + tgt + "(" + str(i) + ")"
         # exec(matlab_program)
 
-
-
-        spt_mat = self.nudas.load_npy_spike_times_tk("./output.m", 0)
+        spt_mat = self.nudas.load_npy_spike_times_tk("./output.mat", 0)
         dim = spt_mat.shape
         for i in range(dim[1]):
             for j in range(dim[0]):
@@ -376,7 +443,8 @@ class Ui_MainWindow(object):
             top_val = bot_val-1
             self.horizontalSlider_2.setValue(top_val)
         if self.nudas.bin_window != -1:
-            self.graphs.plot_ranged_binned_data(self.nudas.bin_data_tk(self.nudas.bin_window), top_val, bot_val, self.nudas.bin_window)
+            # self.graphs.plot_ranged_binned_data(self.nudas.bin_data_tk(self.nudas.bin_window), top_val, bot_val, self.nudas.bin_window)
+            self.graphs.plot_ranged_binned_data(top_val, bot_val)
 
     # gui+
     def bottom_slider_changed(self):
@@ -386,20 +454,21 @@ class Ui_MainWindow(object):
             bot_val = top_val+1
             self.horizontalSlider.setValue(bot_val)
         if self.nudas.bin_window != -1:
-            self.graphs.plot_ranged_binned_data(self.nudas.bin_data_tk(self.nudas.bin_window), top_val, bot_val, self.nudas.bin_window)
+            # self.graphs.plot_ranged_binned_data(self.nudas.bin_data_tk(self.nudas.bin_window), top_val, bot_val, self.nudas.bin_window)
+            self.graphs.plot_ranged_binned_data(top_val, bot_val)
 
     # gui+
     def left_spinbox_changed(self):
         row_idx = self.spinBox_2.value()
         col_idx = self.tableWidget.currentColumn()
-        if row_idx < self.tableWidget.rowCount():
+        if row_idx <= self.tableWidget.rowCount():
             self.tableWidget.setCurrentCell(row_idx-1, col_idx)
 
     # gui+
     def right_spinbox_changed(self):
         col_idx = self.spinBox.value()
         row_idx = self.tableWidget.currentRow()
-        if col_idx < self.tableWidget.columnCount():
+        if col_idx <= self.tableWidget.columnCount():
             self.tableWidget.setCurrentCell(row_idx, col_idx-1)
 
 
@@ -408,7 +477,7 @@ class Ui_MainWindow(object):
 # subplot indexing: https://www.codespeedy.com/use-add_subplot-in-matplotlib/#:~:text=The%20add_subplot%20%28%29%20has%203%20arguments.%20The%20first,above%20is%3A%20from%20matplotlib%20import%20pyplot%20as%20plt
 # self.figure.add_subplot(rows in grid, cols in grid, idx)
 class PlotCanvas(FigureCanvas):
-    def __init__(self, parent=None, width=5, height=10, dpi=100):
+    def __init__(self, parent=None, umw=None, width=5, height=10, dpi=100):
 
         FigureCanvas.__init__(self, Figure(figsize=(width, height), dpi=dpi))
         self.setParent(parent)
@@ -416,16 +485,37 @@ class PlotCanvas(FigureCanvas):
         FigureCanvas.setSizePolicy(self, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
 
+
+        self.ui_main_window = umw
         self.plot_obj = None
-        cb = None
+        self.cb = None
+        self.axis = None
+
+        self.current_mat = None
+        self.graph_title = ''
+        self.x_label = ''
+        self.y_label = ''
+        self.ix = 0
+        self.iy = 0
+        self.st = 0
+        self.ed = 1
 
         # this is the Navigation widget
         # it takes the FigureCanvas widget and the parent
         self.toolbar = NavigationToolbar(self, self)
 
+        self.mpl_connect('button_press_event', self.on_click)
+
         # create the folder that will store the resultant graphs
         if not os.path.isdir('plot_images'):
             os.mkdir('plot_images')
+
+    def on_click(self, event):
+        self.ix, self.iy = math.ceil(event.xdata), math.ceil(event.ydata)
+        print(self.ix, self.iy)
+        if self.ix < self.ui_main_window.tableWidget.rowCount() and self.iy <=self.ui_main_window.tableWidget.columnCount():
+            self.ui_main_window.tableWidget.setCurrentCell(self.ix, self.iy)
+        return
 
     def plot_1D(self, binned_data):
         keys = list(binned_data)
@@ -445,80 +535,135 @@ class PlotCanvas(FigureCanvas):
         self.draw()
 
     def plot_binned_data(self, spt_mat, tw):
+        self.figure.clear()
         self.plot_obj = self.figure.add_subplot(111)
         self.plot_obj.clear()
-        self.plot_obj.set_title('Density plot (time window=' + str(tw) + ' ms')
+        self.graph_title = 'Density plot (time window=' + str(tw) + ' ms'
+        self.x_label = 'Sample Index'
+        self.y_label = 'Neuron Index'
+        self.plot_obj.set_title(self.graph_title)
         im = self.plot_obj.imshow(spt_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
-        cb = self.figure.colorbar(im)
-        self.plot_obj.set_ylabel("Neuron Index")
-        self.plot_obj.set_xlabel("Sample Index")
+        self.cb = self.figure.colorbar(im)
+        self.plot_obj.set_ylabel(self.y_label)
+        self.plot_obj.set_xlabel(self.x_label)
+        self.figure.savefig('plot_images/plot_binned_matrix.png')
         self.draw()
+
+        self.current_mat = spt_mat
         return
 
-    def plot_ranged_binned_data(self, spt_mat, start, end, tw):
-        # start /= 100
-        # end /= 100
-        # visible_time_bins = len(spt_mat[1])
-        # print(int(visible_time_bins * start))
-        # return
-
-        self.plot_obj.clear()
-        self.plot_obj.set_title('Density plot (time window=' + str(tw) + ' ms')
-        start /= 100
-        end /= 100
-        visible_time_bins = len(spt_mat[1])
-        # print(int(visible_time_bins*start))
-        # temp = spt_mat[0:5][int(visible_time_bins*start):int(visible_time_bins*end)]
-        im = self.plot_obj.imshow(spt_mat[:, int(visible_time_bins*start):int(visible_time_bins*end)], origin='lower', aspect='auto', interpolation=None, cmap='cividis')
-        # cb = self.figure.colorbar(im)
-
-        self.plot_obj.set_ylabel("Neuron Index")
-        self.plot_obj.set_xlabel("Sample Index")
-        self.draw()
-
-    def plot_z_norm(self, z_norm_mat):
+    def plot_smoothed_data(self, spt_mat, tw):
+        self.figure.clear()
         self.plot_obj = self.figure.add_subplot(111)
         self.plot_obj.clear()
-        self.plot_obj.set_title('Z-Normed Data')
-        im = self.plot_obj.imshow(z_norm_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
-        self.figure.colorbar(im)
-        self.plot_obj.set_ylabel("Neuron Index")
-        self.plot_obj.set_xlabel("Sample Index")
+        self.graph_title = 'Density plot (standard deviation=' + str(tw) + ' ms'
+        self.x_label = 'Sample Index'
+        self.y_label = 'Neuron Index'
+        self.plot_obj.set_title(self.graph_title)
+        im = self.plot_obj.imshow(spt_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        self.cb = self.figure.colorbar(im)
+        self.plot_obj.set_ylabel(self.y_label)
+        self.plot_obj.set_xlabel(self.x_label)
+        self.figure.savefig('plot_images/plot_smoothed_matrix.png')
         self.draw()
+
+        self.current_mat = spt_mat
+        return
+
+
+
+    def plot_ranged_binned_data(self, start, end):
+        self.figure.clear()
+        self.plot_obj = self.figure.add_subplot(111)
+        self.plot_obj.clear()
+        self.plot_obj.set_title(self.graph_title)
+        start /= 100
+        end /= 100
+        self.st = start
+        self.ed = end
+
+        visible_time_bins = len(self.current_mat[1])
+        # print(int(visible_time_bins*start))
+        # temp = spt_mat[0:5][int(visible_time_bins*start):int(visible_time_bins*end)]
+        im = self.plot_obj.imshow(self.current_mat[:, int(visible_time_bins*start):int(visible_time_bins*end)], origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        cb = self.figure.colorbar(im)
+
+        self.plot_obj.set_ylabel(self.y_label)
+        self.plot_obj.set_xlabel(self.x_label)
+        self.draw()
+
+
+    def plot_z_norm(self, z_norm_mat):
+        self.figure.clear()
+        self.plot_obj = self.figure.add_subplot(111)
+        self.plot_obj.clear()
+        self.graph_title = 'Z-Normed Data'
+        self.x_label = 'Sample Index'
+        self.y_label = 'Neuron Index'
+        self.plot_obj.set_title(self.graph_title)
+        im = self.plot_obj.imshow(z_norm_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        self.cb = self.figure.colorbar(im)
+        self.plot_obj.set_ylabel(self.y_label)
+        self.plot_obj.set_xlabel(self.x_label)
+        self.figure.savefig('plot_images/plot_z_norm.png')
+        self.draw()
+
+        self.current_mat = z_norm_mat
         return
 
     def plot_correlation_matrix(self, cov_mat):
+        self.figure.clear()
         self.plot_obj = self.figure.add_subplot(111)
         self.plot_obj.clear()
-        self.plot_obj.set_title('Correlation Matrix')
+        self.graph_title = 'Correlation Matrix'
+        self.x_label = 'Sample Index'
+        self.y_label = 'Neuron Index'
+        self.plot_obj.set_title(self.graph_title)
         im = self.plot_obj.imshow(cov_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
-        self.figure.colorbar(im)
-        self.plot_obj.set_ylabel("Neuron Index")
-        self.plot_obj.set_xlabel("Sample Index")
+        self.cb = self.figure.colorbar(im)
+        self.plot_obj.set_xlabel(self.x_label)
+        self.plot_obj.set_ylabel(self.y_label)
+        self.figure.savefig('plot_images/plot_correlation_matrix.png')
         self.draw()
+
+        self.current_mat = cov_mat
         return
 
     def plot_granger_matrix(self, psi_2_mat):
+        self.figure.clear()
         self.plot_obj = self.figure.add_subplot(111)
         self.plot_obj.clear()
-        self.plot_obj.set_title('Granger Matrix')
+        self.graph_title = 'Granger Matrix'
+        self.x_label = 'Trigger Neuron Index'
+        self.y_label = 'Target Neuron Index'
+        self.plot_obj.set_title(self.graph_title)
         im = self.plot_obj.imshow(psi_2_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
-        self.figure.colorbar(im)
-        self.plot_obj.set_ylabel("Target Neuron Index")
-        self.plot_obj.set_xlabel("Trigger Neuron Index")
+        self.cb = self.figure.colorbar(im)
+        self.plot_obj.set_xlabel(self.x_label)
+        self.plot_obj.set_ylabel(self.y_label)
+        self.figure.savefig('plot_images/plot_granger_matrix.png')
         self.draw()
+
+        self.current_mat = psi_2_mat
         return
 
     def plot_assembly_matrix(self, assembly_mat):
+        self.figure.clear()
         self.plot_obj = self.figure.add_subplot(111)
         self.plot_obj.clear()
-        self.plot_obj.set_title('Independent Components')
+        self.graph_title = 'Independent Components'
+        self.x_label = 'Assemblies'
+        self.y_label = 'Neuron Index'
+        self.plot_obj.set_title(self.graph_title)
         im = self.plot_obj.imshow(assembly_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
-        self.figure.colorbar(im)
-        self.plot_obj.set_ylabel("Neurons")
-        self.plot_obj.set_xlabel("Assemblies")
+        self.cb = self.figure.colorbar(im)
+        self.plot_obj.set_xlabel(self.x_label)
+        self.plot_obj.set_ylabel(self.y_label)
         self.figure.savefig('plot_images/plot_assembly_matrix.png')
         self.draw()
+
+        self.current_mat = assembly_mat
+        return
 
     def __del__(self):
         shutil.rmtree('plot_images')
