@@ -32,11 +32,17 @@ from scipy.stats import zscore
 
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QApplication, QMainWindow
-import sys
 
 # imports added from tkinter
 from cov_matrix import cov_matrix
 from z_scoring import z_scoring
+
+# assembly_detection
+# from python_functions.assembly.assembly_detection import assembly_detection
+# import sys
+# import os
+# sys.path.insert(0, os.path.abspath(r'python_functions\assembly\assembly_detection.py'))
+from assembly_detection import assembly_detection
 
 
 # this class represents the backend of the system
@@ -171,6 +177,16 @@ class NuDAS(object):
             print("Sorry, this folder doesn't exist, try another one")
             return
 
+    # # load_z_norm_mat.py
+    # def load_z_norm_mat(self, path, dmr):
+    #     # path_spikes=path+'/spike_times_good_clust.mat'
+    #     if os.path.exists(path):
+    #         spt_mat = scipy.io.loadmat(path)
+    #         return spt_mat['spikeTimesGoodClust'], path
+    #     else:
+    #         print("Sorry, this folder doesn't exist, try another one")
+    #         return
+
     # Function to bin the spikes of cluster cluster_nbr with bin size time_window
     # binning.py
     def binning_tk(self, spt_mat, trig, time_window, cluster_nbr, dmr=1, ftsize=22):
@@ -288,3 +304,21 @@ class NuDAS(object):
         cov_mat = cov_mat / z_scored_mat.shape[1]
         np.save('correlation_matrix.npy', cov_mat)
         return cov_mat
+
+    def assembly(self):
+        # execute assembly_detection with z_norm_mat as input
+        z_norm_mat = np.load('z_scored_matrix.npy')
+        sig_eig_vec,bel_lam_min_vec,expl_var = assembly_detection(z_norm_mat)
+        np_file = open('neuronal_participation.py')
+        exec(np_file.read())
+        np_file.close()
+        am_file = open('assembly_matching.py')
+        exec(am_file.read())
+        am_file.close()
+        print(type(sig_eig_vec))
+        print(sig_eig_vec.shape)
+        print(type(bel_lam_min_vec))
+        print(bel_lam_min_vec.shape)
+        print(type(expl_var))
+        print(expl_var.shape)
+        return bel_lam_min_vec

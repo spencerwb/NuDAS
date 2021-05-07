@@ -12,11 +12,17 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 # gui+
 from NuDAS import NuDAS
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+
 from matplotlib.figure import Figure
 import random
 import os
 import matlab.engine
 import scipy.io
+import matplotlib.pyplot as plt
+
+import shutil
+
 
 
 class Ui_MainWindow(object):
@@ -32,6 +38,8 @@ class Ui_MainWindow(object):
         self.stimulus_table = None
         self.spike_table = None
 
+        self.windows = []
+
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.setEnabled(True)
@@ -39,16 +47,21 @@ class Ui_MainWindow(object):
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setEnabled(True)
         self.centralwidget.setObjectName("centralwidget")
-        self.horizontalLayoutWidget = QtWidgets.QWidget(self.centralwidget)
-        self.horizontalLayoutWidget.setGeometry(QtCore.QRect(10, 10, 1981, 1361))
-        self.horizontalLayoutWidget.setObjectName("horizontalLayoutWidget")
-        self.horizontalLayout = QtWidgets.QHBoxLayout(self.horizontalLayoutWidget)
+        # originally the horizontalLayout was a child of this horizontalLayoutWidget
+        # instead of the centralWidget and all objects were being parents of
+        # this widget even though I never made this extra widgetin the designer
+        # because this widget's size is static relative to teh centralwidget it never
+        # caused the objects to change size
+        # self.horizontalLayoutWidget = QtWidgets.QWidget(self.centralwidget)
+        # self.horizontalLayoutWidget.setGeometry(QtCore.QRect(10, 10, 1981, 1361))
+        # self.horizontalLayoutWidget.setObjectName("horizontalLayoutWidget")
+        self.horizontalLayout = QtWidgets.QHBoxLayout(self.centralwidget)
         self.horizontalLayout.setSizeConstraint(QtWidgets.QLayout.SetDefaultConstraint)
         self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.verticalLayout_2 = QtWidgets.QVBoxLayout()
         self.verticalLayout_2.setObjectName("verticalLayout_2")
-        self.label = QtWidgets.QLabel(self.horizontalLayoutWidget)
+        self.label = QtWidgets.QLabel(self.centralwidget)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -56,7 +69,7 @@ class Ui_MainWindow(object):
         self.label.setSizePolicy(sizePolicy)
         self.label.setObjectName("label")
         self.verticalLayout_2.addWidget(self.label)
-        self.tableWidget = QtWidgets.QTableWidget(self.horizontalLayoutWidget)
+        self.tableWidget = QtWidgets.QTableWidget(self.centralwidget)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -67,10 +80,10 @@ class Ui_MainWindow(object):
         self.verticalLayout_2.addWidget(self.tableWidget)
         self.horizontalLayout_2 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_2.setObjectName("horizontalLayout_2")
-        self.spinBox_2 = QtWidgets.QSpinBox(self.horizontalLayoutWidget)
+        self.spinBox_2 = QtWidgets.QSpinBox(self.centralwidget)
         self.spinBox_2.setObjectName("spinBox_2")
         self.horizontalLayout_2.addWidget(self.spinBox_2)
-        self.spinBox = QtWidgets.QSpinBox(self.horizontalLayoutWidget)
+        self.spinBox = QtWidgets.QSpinBox(self.centralwidget)
         self.spinBox.setObjectName("spinBox")
         self.horizontalLayout_2.addWidget(self.spinBox)
         self.verticalLayout_2.addLayout(self.horizontalLayout_2)
@@ -78,21 +91,25 @@ class Ui_MainWindow(object):
         self.horizontalLayout.addLayout(self.verticalLayout_2)
         self.verticalLayout = QtWidgets.QVBoxLayout()
         self.verticalLayout.setObjectName("verticalLayout")
-        self.horizontalSlider_2 = QtWidgets.QSlider(self.horizontalLayoutWidget)
+        self.horizontalSlider_2 = QtWidgets.QSlider(self.centralwidget)
         self.horizontalSlider_2.setOrientation(QtCore.Qt.Horizontal)
         self.horizontalSlider_2.setObjectName("horizontalSlider_2")
         self.verticalLayout.addWidget(self.horizontalSlider_2)
-        self.horizontalSlider = QtWidgets.QSlider(self.horizontalLayoutWidget)
+        self.horizontalSlider = QtWidgets.QSlider(self.centralwidget)
         self.horizontalSlider.setOrientation(QtCore.Qt.Horizontal)
         self.horizontalSlider.setObjectName("horizontalSlider")
         self.verticalLayout.addWidget(self.horizontalSlider)
-        self.widget = QtWidgets.QWidget(self.horizontalLayoutWidget)
+        # self widget is the widget containing all of the widgets for the right graphing half of the application
+        self.widget = QtWidgets.QWidget(self.centralwidget)
         print(self.widget.size())
         self.widget.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.widget.setObjectName("widget")
         # gui+ ->
-        self.graphs = PlotCanvas(self.widget, width=10,
+        self.graphs = PlotCanvas(self.centralwidget, width=10,
                                            height=15)
+        # this was not here before
+        # TODO: DELETE self.widget its obsolete now because the graphs no longer need a parent
+        self.verticalLayout.addWidget(self.graphs)
         # gui+ <-
         self.verticalLayout.addWidget(self.widget)
         self.horizontalLayout.addLayout(self.verticalLayout)
@@ -120,18 +137,28 @@ class Ui_MainWindow(object):
         self.actionZ_Score = QtWidgets.QAction(MainWindow)
         self.actionZ_Score.setObjectName("actionZ_Score")
         # gui+ ->
+        self.actionOpenNewWindow = QtWidgets.QAction(MainWindow)
+        self.actionOpenNewWindow.setObjectName("actionOpenNewWindow")
+        self.actionExportGraphs = QtWidgets.QAction(MainWindow)
+        self.actionExportGraphs.setObjectName("actionExportGraphs")
         self.actionCorrelationMatrix = QtWidgets.QAction(MainWindow)
         self.actionCorrelationMatrix.setObjectName("actionCorrelationMatrix")
-        self.actionCustomFunction = QtWidgets.QAction(MainWindow)
-        self.actionCustomFunction.setObjectName("actionCustomFunction")
+        self.actionGrangerFunction = QtWidgets.QAction(MainWindow)
+        self.actionGrangerFunction.setObjectName("actionGrangerFunction")
+        self.actionAssemblyFunction = QtWidgets.QAction(MainWindow)
+        self.actionAssemblyFunction.setObjectName("actionAssemblyFunction")
         # <-
         self.menuFile.addAction(self.actionOpenStimulus)
         self.menuFile.addAction(self.actionOpenSpikes)
         self.menuTools.addAction(self.actionBinning)
         self.menuTools.addAction(self.actionZ_Score)
         # gui+ ->
+        self.menuFile.addSeparator()
+        self.menuFile.addAction(self.actionOpenNewWindow)
+        self.menuFile.addAction(self.actionExportGraphs)
         self.menuTools.addAction(self.actionCorrelationMatrix)
-        self.menuTools.addAction(self.actionCustomFunction)
+        self.menuTools.addAction(self.actionGrangerFunction)
+        self.menuTools.addAction(self.actionAssemblyFunction)
         # <-
         self.menubar.addAction(self.menuFile.menuAction())
         self.menubar.addAction(self.menuTools.menuAction())
@@ -143,8 +170,12 @@ class Ui_MainWindow(object):
         # File connections
         self.actionOpenStimulus.triggered. \
             connect(lambda: self.open_file_dialog("Open Stimulus File", "Image Files (*.mat)", 0))
+
         self.actionOpenSpikes.triggered. \
             connect(lambda: self.open_file_dialog("Open Action Potential File", "Image Files (*.mat)", 1))
+
+        self.actionOpenNewWindow.triggered. \
+            connect(lambda: self.open_new_window())
 
         # Tools connections
         self.actionBinning.triggered. \
@@ -156,10 +187,18 @@ class Ui_MainWindow(object):
         self.actionCorrelationMatrix.triggered. \
             connect(lambda: self.correlation_matrix())
 
-        self.actionCustomFunction.triggered. \
+        self.actionGrangerFunction.triggered. \
             connect(lambda: self.granger())
 
-        # qui+
+        self.actionAssemblyFunction.triggered. \
+            connect(lambda: self.assembly())
+
+        self.actionExportGraphs.triggered. \
+            connect(lambda: self.open_file_dialog(c="Select Destination Folder", f='', dialog_type=2))
+
+
+
+        # gui+
         self.label.setText("No Binned Data to Display")
         # Sliders connections
         # top
@@ -175,10 +214,9 @@ class Ui_MainWindow(object):
         self.spinBox.setMinimum(1)
 
 
-
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "NuDAS"))
         self.label.setText(_translate("MainWindow", "TextLabel"))
         self.menuFile.setTitle(_translate("MainWindow", "File"))
         self.menuTools.setTitle(_translate("MainWindow", "Tools"))
@@ -188,8 +226,20 @@ class Ui_MainWindow(object):
         self.actionBinning.setText(_translate("MainWindow", "Binning"))
         self.actionZ_Score.setText(_translate("MainWindow", "Z-Score"))
         # gui+
+        self.actionOpenNewWindow.setText(_translate("MainWindow", "Open New Window"))
+        self.actionExportGraphs.setText(_translate("MainWindow", "Export Graphs"))
         self.actionCorrelationMatrix.setText(_translate("MainWindow", "Correlation Matrix"))
-        self.actionCustomFunction.setText(_translate("MainWindow", "Granger Causality"))
+        self.actionGrangerFunction.setText(_translate("MainWindow", "Granger Causality"))
+        self.actionAssemblyFunction.setText(_translate("MainWindow", "Assembly"))
+
+    # gui+
+    def open_new_window(self):
+        self.windows.append((QtWidgets.QMainWindow(), Ui_MainWindow()))
+        other_main_window = self.windows[-1][0]
+        other_ui_main_window = self.windows[-1][1]
+        self.ui = Ui_MainWindow()
+        other_ui_main_window.setupUi(other_main_window)
+        other_main_window.show()
 
     # gui+
     def open_file_dialog(self, c, f, dialog_type):
@@ -198,19 +248,29 @@ class Ui_MainWindow(object):
                                                                      c,
                                                                      "/home",
                                                                      f)
-            # print(self.stimulus_file_path)
-            # CHANGED TK:
-            # self.nudas.load_stimulus(self.stimulus_file_path)
+
             self.nudas.stimulus_to_npy_tk(self.stimulus_file_path)
+
         elif dialog_type == 1:
             self.spike_times_file_path, x = QtWidgets.QFileDialog.getOpenFileName(self.centralwidget,
                                                                         c,
                                                                         "/home",
                                                                         f)
-            # print(self.spike_times_file_path)
-            # CHANGED TK:
-            # self.nudas.load_spike_times(self.spike_times_file_path)
+
             self.nudas.spike_times_to_npy_tk(self.spike_times_file_path)
+
+        elif dialog_type == 2:
+            dir = QtWidgets.QFileDialog.getExistingDirectory(self.centralwidget,
+                                                             c,
+                                                             "/home",
+                                                             QtWidgets.QFileDialog.ShowDirsOnly
+                                                             | QtWidgets.QFileDialog.DontResolveSymlinks
+                                                             )
+
+            for root, dirs, files in os.walk('plot_images'):
+                for file in files:
+                    shutil.copy(os.path.join(root, file), dir)
+
 
     # gui+
     # c is for comb. it's like some kind of matplotlib backend for embedding graphs
@@ -301,25 +361,32 @@ class Ui_MainWindow(object):
                 self.tableWidget.setItem(i, j, table_item)
         return
 
+    # gui+
+    def assembly(self):
+        assembly_mat = self.nudas.assembly()
+        self.graphs.plot_assembly_matrix(assembly_mat.transpose())
+        return
+
+
     #gui+
     def top_slider_changed(self):
         top_val = self.horizontalSlider_2.value()
         bot_val = self.horizontalSlider.value()
         if top_val >= bot_val:
-            self.horizontalSlider_2.setValue(bot_val-1)
+            top_val = bot_val-1
+            self.horizontalSlider_2.setValue(top_val)
         if self.nudas.bin_window != -1:
             self.graphs.plot_ranged_binned_data(self.nudas.bin_data_tk(self.nudas.bin_window), top_val, bot_val, self.nudas.bin_window)
-        # print(top_val)
 
     # gui+
     def bottom_slider_changed(self):
         bot_val = self.horizontalSlider.value()
         top_val = self.horizontalSlider_2.value()
         if top_val >= bot_val:
-            self.horizontalSlider.setValue(top_val+1)
+            bot_val = top_val+1
+            self.horizontalSlider.setValue(bot_val)
         if self.nudas.bin_window != -1:
             self.graphs.plot_ranged_binned_data(self.nudas.bin_data_tk(self.nudas.bin_window), top_val, bot_val, self.nudas.bin_window)
-        # print(bot_val)
 
     # gui+
     def left_spinbox_changed(self):
@@ -337,21 +404,28 @@ class Ui_MainWindow(object):
 
 
 # gui+
+# FigureCanvas in Qt Tuttorial: https://www.geeksforgeeks.org/how-to-embed-matplotlib-graph-in-pyqt5/
 # subplot indexing: https://www.codespeedy.com/use-add_subplot-in-matplotlib/#:~:text=The%20add_subplot%20%28%29%20has%203%20arguments.%20The%20first,above%20is%3A%20from%20matplotlib%20import%20pyplot%20as%20plt
 # self.figure.add_subplot(rows in grid, cols in grid, idx)
 class PlotCanvas(FigureCanvas):
     def __init__(self, parent=None, width=5, height=10, dpi=100):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        # self.axes = fig.add_subplot(111)
 
-        FigureCanvas.__init__(self, fig)
+        FigureCanvas.__init__(self, Figure(figsize=(width, height), dpi=dpi))
         self.setParent(parent)
 
         FigureCanvas.setSizePolicy(self, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
 
         self.plot_obj = None
+        cb = None
 
+        # this is the Navigation widget
+        # it takes the FigureCanvas widget and the parent
+        self.toolbar = NavigationToolbar(self, self)
+
+        # create the folder that will store the resultant graphs
+        if not os.path.isdir('plot_images'):
+            os.mkdir('plot_images')
 
     def plot_1D(self, binned_data):
         keys = list(binned_data)
@@ -371,24 +445,15 @@ class PlotCanvas(FigureCanvas):
         self.draw()
 
     def plot_binned_data(self, spt_mat, tw):
-        self.plot_obj = self.figure.add_subplot(211)
+        self.plot_obj = self.figure.add_subplot(111)
         self.plot_obj.clear()
         self.plot_obj.set_title('Density plot (time window=' + str(tw) + ' ms')
-        self.plot_obj.imshow(spt_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        im = self.plot_obj.imshow(spt_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        cb = self.figure.colorbar(im)
         self.plot_obj.set_ylabel("Neuron Index")
         self.plot_obj.set_xlabel("Sample Index")
         self.draw()
         return
-
-
-
-        plot1 = self.figure.add_subplot(311)
-        plot1.clear()
-        plot1.set_title('Density plot (time window=' + str(tw) + ' ms')
-        plot1.imshow(spt_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
-        plot1.set_ylabel("Neuron Index")
-        plot1.set_xlabel("Sample Index")
-        self.draw()
 
     def plot_ranged_binned_data(self, spt_mat, start, end, tw):
         # start /= 100
@@ -398,59 +463,67 @@ class PlotCanvas(FigureCanvas):
         # return
 
         self.plot_obj.clear()
-        # self.plot_obj.set_title('Density plot (time window=' + str(tw) + ' ms')
+        self.plot_obj.set_title('Density plot (time window=' + str(tw) + ' ms')
         start /= 100
         end /= 100
         visible_time_bins = len(spt_mat[1])
         # print(int(visible_time_bins*start))
         # temp = spt_mat[0:5][int(visible_time_bins*start):int(visible_time_bins*end)]
-        self.plot_obj.imshow(spt_mat[:, int(visible_time_bins*start):int(visible_time_bins*end)], origin='lower', aspect='auto', interpolation=None, cmap='cividis')
-        # self.plot_obj.set_ylabel("Neuron Index")
-        # self.plot_obj.set_xlabel("Sample Index")
+        im = self.plot_obj.imshow(spt_mat[:, int(visible_time_bins*start):int(visible_time_bins*end)], origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        # cb = self.figure.colorbar(im)
+
+        self.plot_obj.set_ylabel("Neuron Index")
+        self.plot_obj.set_xlabel("Sample Index")
         self.draw()
 
     def plot_z_norm(self, z_norm_mat):
+        self.plot_obj = self.figure.add_subplot(111)
         self.plot_obj.clear()
         self.plot_obj.set_title('Z-Normed Data')
-        self.plot_obj.imshow(z_norm_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        im = self.plot_obj.imshow(z_norm_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        self.figure.colorbar(im)
         self.plot_obj.set_ylabel("Neuron Index")
         self.plot_obj.set_xlabel("Sample Index")
         self.draw()
         return
-
-        plot1 = self.figure.add_subplot(312)
-        plot1.clear()
-        plot1.set_title('Z-Normed Data')
-        plot1.imshow(z_norm_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
-        plot1.set_ylabel("Neuron Index")
-        plot1.set_xlabel("Sample Index")
-        self.draw()
 
     def plot_correlation_matrix(self, cov_mat):
+        self.plot_obj = self.figure.add_subplot(111)
         self.plot_obj.clear()
         self.plot_obj.set_title('Correlation Matrix')
-        self.plot_obj.imshow(cov_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        im = self.plot_obj.imshow(cov_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        self.figure.colorbar(im)
         self.plot_obj.set_ylabel("Neuron Index")
         self.plot_obj.set_xlabel("Sample Index")
         self.draw()
         return
 
-        plot1 = self.figure.add_subplot(313)
-        plot1.clear()
-        plot1.set_title('Correlation Matrix')
-        plot1.imshow(cov_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
-        plot1.set_ylabel("Neuron Index")
-        plot1.set_xlabel("Sample Index")
-        self.draw()
-
     def plot_granger_matrix(self, psi_2_mat):
+        self.plot_obj = self.figure.add_subplot(111)
         self.plot_obj.clear()
         self.plot_obj.set_title('Granger Matrix')
-        self.plot_obj.imshow(psi_2_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        im = self.plot_obj.imshow(psi_2_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        self.figure.colorbar(im)
         self.plot_obj.set_ylabel("Target Neuron Index")
         self.plot_obj.set_xlabel("Trigger Neuron Index")
         self.draw()
         return
+
+    def plot_assembly_matrix(self, assembly_mat):
+        self.plot_obj = self.figure.add_subplot(111)
+        self.plot_obj.clear()
+        self.plot_obj.set_title('Independent Components')
+        im = self.plot_obj.imshow(assembly_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        self.figure.colorbar(im)
+        self.plot_obj.set_ylabel("Neurons")
+        self.plot_obj.set_xlabel("Assemblies")
+        self.figure.savefig('plot_images/plot_assembly_matrix.png')
+        self.draw()
+
+    def __del__(self):
+        shutil.rmtree('plot_images')
+        return
+
 
 
 if __name__ == "__main__":
