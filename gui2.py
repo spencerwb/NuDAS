@@ -17,7 +17,8 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 import random
 import os
-import matlab.engine
+#import matlab.engine #matlab->octave
+from oct2py import octave
 import scipy.io
 import matplotlib.pyplot as plt
 import math
@@ -398,7 +399,8 @@ class Ui_MainWindow(object):
 
     # gui+
     def granger(self):
-        eng = matlab.engine.start_matlab()
+#        eng = matlab.engine.start_matlab() #matlab->octave
+        octave.addpath(os.path)
         tgt = "testRetString"
         i = 3
         # out = eng.run_granger()
@@ -419,6 +421,7 @@ class Ui_MainWindow(object):
         return
         # matlab_program = "eng." + tgt + "(" + str(i) + ")"
         # exec(matlab_program)
+        octave.run(tgt + ".m")
 
         spt_mat = self.nudas.load_npy_spike_times_tk("./output.mat", 0)
         dim = spt_mat.shape
