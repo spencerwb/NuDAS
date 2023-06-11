@@ -46,7 +46,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.setEnabled(True)
-        MainWindow.resize(2000, 1500)
+        MainWindow.resize(1000, 750)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setEnabled(True)
         self.centralwidget.setObjectName("centralwidget")
@@ -256,7 +256,7 @@ class Ui_MainWindow(object):
         if dialog_type == 0:
             self.stimulus_file_path, x = QtWidgets.QFileDialog.getOpenFileName(self.centralwidget,
                                                                      c,
-                                                                     "/home",
+                                                                     "",
                                                                      f)
 
             self.nudas.stimulus_to_npy_tk(self.stimulus_file_path)
@@ -264,7 +264,7 @@ class Ui_MainWindow(object):
         elif dialog_type == 1:
             self.spike_times_file_path, x = QtWidgets.QFileDialog.getOpenFileName(self.centralwidget,
                                                                         c,
-                                                                        "/home",
+                                                                        "",
                                                                         f)
 
             self.nudas.spike_times_to_npy_tk(self.spike_times_file_path)
@@ -272,7 +272,7 @@ class Ui_MainWindow(object):
         elif dialog_type == 2:
             dir = QtWidgets.QFileDialog.getExistingDirectory(self.centralwidget,
                                                              c,
-                                                             "/home",
+                                                             "",
                                                              QtWidgets.QFileDialog.ShowDirsOnly
                                                              | QtWidgets.QFileDialog.DontResolveSymlinks
                                                              )
@@ -400,11 +400,19 @@ class Ui_MainWindow(object):
     # gui+
     def granger(self):
 #        eng = matlab.engine.start_matlab() #matlab->octave
-        octave.addpath(os.path)
-        tgt = "testRetString"
-        i = 3
+        octave.addpath(os.getcwd())
         # out = eng.run_granger()
         # print(out)
+        tgt = "run_granger.m"
+        # this will cause an error because i am using the octave engine instead
+        # of the matlab engine. the octave engine does not support all of
+        # matlab's functionality. in this example, i have run into one of these
+        # inconsistencies in an attempt in `CausalTest.m` t invoke the 
+        # `chi2inv` function.
+        # chi2inv is a builtin function in matlab: https://www.mathworks.com/help/stats/chi2inv.html
+        # i will probbaly have to implement this function in matlab and add it
+        # to my project's directory.
+        octave.run(tgt)
 
         path='./causal_map.mat'
         if os.path.exists(path):
@@ -421,7 +429,6 @@ class Ui_MainWindow(object):
         return
         # matlab_program = "eng." + tgt + "(" + str(i) + ")"
         # exec(matlab_program)
-        octave.run(tgt + ".m")
 
         spt_mat = self.nudas.load_npy_spike_times_tk("./output.mat", 0)
         dim = spt_mat.shape
@@ -538,6 +545,14 @@ class PlotCanvas(FigureCanvas):
         self.draw()
 
     def plot_binned_data(self, spt_mat, tw):
+        # TODO: for some reason i have 2 graph bin functions. the other 
+        # function is called plot_ranged_binned_data() if i could wrap these
+        # 2 functions into a single function, that would help simplify my logic
+        # i must havereally been going through it when coding this because 
+        # everything is so sloppy and has no order or comments.
+        # i attempted a quick fix below, but the graph didn't show up.
+#        plot_ranged_binned_data(0, spt_mat.shape[1])
+#        return
         self.figure.clear()
         self.plot_obj = self.figure.add_subplot(111)
         self.plot_obj.clear()
@@ -545,7 +560,13 @@ class PlotCanvas(FigureCanvas):
         self.x_label = 'Sample Index'
         self.y_label = 'Neuron Index'
         self.plot_obj.set_title(self.graph_title)
-        im = self.plot_obj.imshow(spt_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        im = self.plot_obj.imshow(
+            spt_mat,
+            origin='lower',
+            aspect='auto',
+            interpolation='none',
+            cmap='cividis'
+        )
         self.cb = self.figure.colorbar(im)
         self.plot_obj.set_ylabel(self.y_label)
         self.plot_obj.set_xlabel(self.x_label)
@@ -588,7 +609,13 @@ class PlotCanvas(FigureCanvas):
         visible_time_bins = len(self.current_mat[1])
         # print(int(visible_time_bins*start))
         # temp = spt_mat[0:5][int(visible_time_bins*start):int(visible_time_bins*end)]
-        im = self.plot_obj.imshow(self.current_mat[:, int(visible_time_bins*start):int(visible_time_bins*end)], origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        im = self.plot_obj.imshow(
+            self.current_mat[:, int(visible_time_bins*start):int(visible_time_bins*end)], 
+            origin='lower', 
+            aspect='auto',
+            interpolation='none',
+            cmap='cividis'
+        )
         cb = self.figure.colorbar(im)
 
         self.plot_obj.set_ylabel(self.y_label)
@@ -604,7 +631,13 @@ class PlotCanvas(FigureCanvas):
         self.x_label = 'Sample Index'
         self.y_label = 'Neuron Index'
         self.plot_obj.set_title(self.graph_title)
-        im = self.plot_obj.imshow(z_norm_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        im = self.plot_obj.imshow(
+            z_norm_mat,
+            origin='lower',
+            aspect='auto',
+            interpolation='none',
+            cmap='cividis'
+        )
         self.cb = self.figure.colorbar(im)
         self.plot_obj.set_ylabel(self.y_label)
         self.plot_obj.set_xlabel(self.x_label)
@@ -658,7 +691,13 @@ class PlotCanvas(FigureCanvas):
         self.x_label = 'Assemblies'
         self.y_label = 'Neuron Index'
         self.plot_obj.set_title(self.graph_title)
-        im = self.plot_obj.imshow(assembly_mat, origin='lower', aspect='auto', interpolation=None, cmap='cividis')
+        im = self.plot_obj.imshow(
+            assembly_mat,
+            origin='lower',
+            aspect='auto',
+            interpolation='none',
+            cmap='cividis'
+        )
         self.cb = self.figure.colorbar(im)
         self.plot_obj.set_xlabel(self.x_label)
         self.plot_obj.set_ylabel(self.y_label)
