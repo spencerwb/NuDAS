@@ -1,0 +1,4 @@
+https://github.com/jylls/neural_gui_tkinter
+
+toy data
+https://drive.google.com/drive/folders/1eOb5Hx9NBi6re4Drm6hbnKAff057iS6O
