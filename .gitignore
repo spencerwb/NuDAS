@@ -1,3 +1,5 @@
 # ignore the dependencies in the virtual environment
+env/
 
-venv/
+# ignore the python caching directory
+__pycache__/
